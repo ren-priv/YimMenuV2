@@ -131,3 +131,29 @@ jobs:
           } else {
             gh issue create --repo $env:GITHUB_REPOSITORY --title $title --body $body --label "ci-failure"
           }
+
+      # Prevent GitHub from auto-disabling the schedule after 60 days of repo
+      # inactivity. Runs even on build failure so the schedule survives a patch
+      # outage. Commits a real file change only when the last commit is old, so
+      # history stays clean (~1 commit per 45 days).
+      - name: Keep schedule alive
+        if: always()
+        working-directory: fork
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          age_days=$(( (now - last) / 86400 ))
+          echo "Last commit on the fork was $age_days day(s) ago."
+          if [ "$age_days" -ge 45 ]; then
+            mkdir -p .github
+            date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/keepalive
+            git add .github/keepalive
+            git commit -m "chore: keepalive to prevent scheduled-workflow auto-disable [skip ci]"
+            git push origin HEAD:enhanced
+            echo "Pushed keepalive commit."
+          else
+            echo "No keepalive needed yet (< 45 days)."
+          fi
