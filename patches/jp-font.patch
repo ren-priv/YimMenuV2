@@ -1,0 +1,26 @@
+diff --git a/src/game/frontend/Menu.cpp b/src/game/frontend/Menu.cpp
+index 9193cdb..77f4116 100644
+--- a/src/game/frontend/Menu.cpp
++++ b/src/game/frontend/Menu.cpp
+@@ -82,6 +82,21 @@ namespace YimMenu
+ 		FontCfg.MergeMode = true;
+ 		io.Fonts->AddFontFromFileTTF((std::filesystem::path(std::getenv("SYSTEMROOT")) / "Fonts" / "arial.ttf").string().c_str(), size, &FontCfg, GetGlyphRangesCyrillicOnly());
+ 
++		// Merge a Japanese system font so in-game CJK text (e.g. vehicle names) renders instead of "???".
++		// This only adds glyph coverage; the menu's own UI text stays English.
++		for (const auto* jpFont : {"meiryo.ttc", "YuGothR.ttc", "msgothic.ttc"})
++		{
++			auto jpPath = std::filesystem::path(std::getenv("SYSTEMROOT")) / "Fonts" / jpFont;
++			if (std::filesystem::exists(jpPath))
++			{
++				ImFontConfig JpCfg = FontCfg; // inherits MergeMode = true
++				JpCfg.OversampleH  = 1;       // CJK has many glyphs; reduce atlas size
++				JpCfg.OversampleV  = 1;
++				io.Fonts->AddFontFromFileTTF(jpPath.string().c_str(), size, &JpCfg, io.Fonts->GetGlyphRangesJapanese());
++				break;
++			}
++		}
++
+ 		io.Fonts->Build();
+ 
+ 		return font;

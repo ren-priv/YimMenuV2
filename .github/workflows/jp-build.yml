@@ -1,0 +1,95 @@
+name: JP Build
+
+on:
+  schedule:
+    # Run after upstream's nightly (14:00 UTC) so we build the freshest source
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to publish the rolling release
+
+concurrency:
+  group: jp-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    name: Build JP YimMenuV2
+    steps:
+      - name: Disable CRLF conversion (so the patch applies cleanly)
+        run: git config --global core.autocrlf false
+
+      - name: Checkout upstream source (latest enhanced)
+        uses: actions/checkout@v4
+        with:
+          repository: YimMenu/YimMenuV2
+          ref: enhanced
+          path: upstream
+
+      - name: Checkout my patches
+        uses: actions/checkout@v4
+        with:
+          path: fork
+
+      - name: Apply JP font patch
+        working-directory: upstream
+        run: git apply --3way --ignore-whitespace --verbose ../fork/patches/jp-font.patch
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Generate CMake project
+        working-directory: upstream
+        run: cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo -S . -B build -G Ninja
+
+      - name: Build YimMenuV2
+        working-directory: upstream
+        run: cmake --build ./build --config RelWithDebInfo --target YimMenuV2 --
+
+      - name: Check if DLL got built
+        working-directory: upstream
+        run: if (-Not (Test-Path -path "build/YimMenuV2.dll")) { throw 1 }
+
+      - name: Record upstream commit
+        id: sha
+        working-directory: upstream
+        run: |
+          echo "full=$(git rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+          echo "short=$(git rev-parse --short HEAD)" >> $env:GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YimMenuV2-jp
+          path: |
+            upstream/build/YimMenuV2.dll
+            upstream/build/YimMenuV2.pdb
+
+      - name: Echo build sha256
+        id: build_sha
+        working-directory: upstream/build
+        run: |
+          $hash = (Get-FileHash YimMenuV2.dll -Algorithm SHA256).Hash
+          echo "value=$hash" >> $env:GITHUB_OUTPUT
+          echo $hash
+
+      - name: Publish rolling release
+        uses: softprops/action-gh-release@v2.2.2
+        with:
+          name: JP Nightly [${{ steps.sha.outputs.short }}]
+          tag_name: jp-nightly
+          body: |
+            JP-patched build of YimMenuV2 (in-game CJK text renders instead of "???"; menu UI stays English).
+            Built automatically by GitHub Actions from upstream `enhanced`.
+
+            Upstream commit: `${{ steps.sha.outputs.full }}`
+            DLL SHA256:
+            ```
+            ${{ steps.build_sha.outputs.value }}
+            ```
+            For testing purposes only. No warranty.
+          files: upstream/build/YimMenuV2.dll
