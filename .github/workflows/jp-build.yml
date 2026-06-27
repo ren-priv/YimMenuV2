@@ -34,9 +34,18 @@ jobs:
         with:
           path: fork
 
-      - name: Apply JP font patch
+      - name: Apply patches
         working-directory: upstream
-        run: git apply --3way --ignore-whitespace --verbose ../fork/patches/jp-font.patch
+        shell: bash
+        run: |
+          shopt -s nullglob
+          patches=(../fork/patches/*.patch)
+          if [ ${#patches[@]} -eq 0 ]; then echo "No patches found"; exit 1; fi
+          for p in "${patches[@]}"; do
+            echo "::group::Applying $p"
+            git apply --3way --ignore-whitespace --verbose "$p"
+            echo "::endgroup::"
+          done
 
       - name: Setup MSVC environment
         uses: ilammy/msvc-dev-cmd@v1

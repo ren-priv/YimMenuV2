@@ -1,0 +1,26 @@
+diff --git a/src/game/frontend/submenus/Vehicle/SpawnVehicle.cpp b/src/game/frontend/submenus/Vehicle/SpawnVehicle.cpp
+index 32a2f47..4346668 100644
+--- a/src/game/frontend/submenus/Vehicle/SpawnVehicle.cpp
++++ b/src/game/frontend/submenus/Vehicle/SpawnVehicle.cpp
+@@ -44,12 +44,20 @@ namespace YimMenu::Submenus
+ 						}
+ 						++count;
+ 
+-						std::string maker = HUD::GET_FILENAME_FOR_AUDIO_CONVERSATION(VEHICLE::GET_MAKE_NAME_FROM_VEHICLE_MODEL(veh));
++						std::string makerKey = VEHICLE::GET_MAKE_NAME_FROM_VEHICLE_MODEL(veh); // language-independent ASCII key
++						std::string maker    = HUD::GET_FILENAME_FOR_AUDIO_CONVERSATION(makerKey.c_str());
+ 						if (maker != "NULL")
+ 						{
+ 							finalName = maker + " " + finalName;
+ 						}
+ 
++						// Append the language-independent GXT key(s) in brackets so the row stays
++						// searchable with a US keyboard layout even when the display name is localized.
++						std::string searchKey = gxt;
++						if (!makerKey.empty() && makerKey != "NULL")
++							searchKey = makerKey + " " + gxt;
++						finalName += "  [" + searchKey + "]";
++
+ 						vehicleNames.push_back(finalName);
+ 
+ 						int id = VEHICLE::GET_VEHICLE_CLASS_FROM_NAME(veh);
