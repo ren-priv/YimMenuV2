@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write # needed to publish the rolling release
+  issues: write   # needed to open a failure-notification issue
 
 concurrency:
   group: jp-build
@@ -93,3 +94,31 @@ jobs:
             ```
             For testing purposes only. No warranty.
           files: upstream/build/YimMenuV2.dll
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $title = "JP Build failed"
+          $run   = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          $body  = @"
+          The scheduled **JP Build** failed.
+
+          Run: $run
+
+          The most likely cause is that upstream changed the font setup and ``patches/jp-font.patch`` no longer applies.
+          Re-generate the patch against the latest ``enhanced`` and push it:
+
+          1. ``git clone https://github.com/YimMenu/YimMenuV2 && cd YimMenuV2``
+          2. edit ``src/game/frontend/Menu.cpp`` (CreateFontWithCyrillicSupport) to merge a JP system font
+          3. ``git diff -- src/game/frontend/Menu.cpp > patches/jp-font.patch`` and push it to this fork
+
+          This issue is auto-managed: it will be commented on for repeated failures.
+          "@
+          $existing = gh issue list --repo $env:GITHUB_REPOSITORY --state open --search "$title in:title" --json number --jq '.[0].number'
+          if ($existing) {
+            gh issue comment $existing --repo $env:GITHUB_REPOSITORY --body $body
+          } else {
+            gh issue create --repo $env:GITHUB_REPOSITORY --title $title --body $body --label "ci-failure"
+          }
