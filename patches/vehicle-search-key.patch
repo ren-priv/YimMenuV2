@@ -1,3 +1,36 @@
+diff --git a/src/game/backend/PersonalVehicles.cpp b/src/game/backend/PersonalVehicles.cpp
+index ecfe2f5..0c1b741 100644
+--- a/src/game/backend/PersonalVehicles.cpp
++++ b/src/game/backend/PersonalVehicles.cpp
+@@ -259,7 +259,9 @@ namespace YimMenu
+ 	{
+ 		m_Model = m_Data->VehicleModel;
+ 		m_Plate = m_Data->NumberPlateText;
+-		m_Name = std::format("{} ({})##{}", HUD::GET_FILENAME_FOR_AUDIO_CONVERSATION(VEHICLE::GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(m_Model)), m_Plate, m_Id);
++		// Append the language-independent GXT key so the list stays searchable with a US keyboard layout.
++		const char* gxtKey = VEHICLE::GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(m_Model);
++		m_Name = std::format("{} [{}] ({})##{}", HUD::GET_FILENAME_FOR_AUDIO_CONVERSATION(gxtKey), gxtKey, m_Plate, m_Id);
+ 
+ 		SetGarage();
+ 	}
+diff --git a/src/game/frontend/submenus/Self/Weapons.cpp b/src/game/frontend/submenus/Self/Weapons.cpp
+index 3040f94..539703e 100644
+--- a/src/game/frontend/submenus/Self/Weapons.cpp
++++ b/src/game/frontend/submenus/Self/Weapons.cpp
+@@ -82,7 +82,12 @@ namespace YimMenu::Submenus
+ 							std::string nameDisplay = HUD::GET_FILENAME_FOR_AUDIO_CONVERSATION(nameGxt.c_str());
+ 							std::string descDisplay = HUD::GET_FILENAME_FOR_AUDIO_CONVERSATION(descGxt.c_str());
+ 
+-							weaponDisplays.push_back({((nameDisplay.empty() || nameDisplay == "NULL" || nameDisplay == "Invalid") ? "" : nameDisplay), ((descDisplay.empty() || descDisplay == "NULL" || descDisplay == "Invalid") ? "" : descDisplay), weap});
++							std::string name = (nameDisplay.empty() || nameDisplay == "NULL" || nameDisplay == "Invalid") ? "" : nameDisplay;
++							// Append the language-independent GXT label so the row stays searchable with a US keyboard layout.
++							if (!name.empty() && !nameGxt.empty() && nameGxt != "NULL")
++								name += "  [" + nameGxt + "]";
++
++							weaponDisplays.push_back({name, ((descDisplay.empty() || descDisplay == "NULL" || descDisplay == "Invalid") ? "" : descDisplay), weap});
+ 						}
+ 
+ 						thread->Kill();
 diff --git a/src/game/frontend/submenus/Vehicle/SpawnVehicle.cpp b/src/game/frontend/submenus/Vehicle/SpawnVehicle.cpp
 index 32a2f47..4346668 100644
 --- a/src/game/frontend/submenus/Vehicle/SpawnVehicle.cpp
